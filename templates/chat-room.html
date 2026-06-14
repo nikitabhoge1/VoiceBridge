@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Room – SignBridge</title>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --ink: #0f0f14;
+            --paper: #f5f3ef;
+            --accent: #5b4fff;
+            --accent2: #ff6b35;
+            --green: #00c896;
+            --muted: #9090a0;
+            --card: #ffffff;
+            --border: #e2e0dc;
+            --danger: #ff3b5c;
+            --sent-bg: #5b4fff;
+            --recv-bg: #ffffff;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--ink);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* TOP BAR */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 14px 20px;
+            background: var(--ink);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            flex-shrink: 0;
+        }
+        .back-btn {
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 20px;
+            transition: color 0.2s;
+            line-height: 1;
+        }
+        .back-btn:hover { color: white; }
+        .room-info { flex: 1; min-width: 0; }
+        .room-name {
+            font-family: 'Syne', sans-serif;
+            font-weight: 700;
+            font-size: 16px;
+            color: white;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .room-meta { font-size: 12px; color: var(--muted); }
+        .conn-badge {
+            padding: 5px 12px;
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .conn-badge.connected { background: rgba(0,200,150,0.15); color: var(--green); }
+        .conn-badge.disconnected { background: rgba(255,59,92,0.15); color: var(--danger); }
+        .conn-badge.connecting { background: rgba(255,200,0,0.15); color: #ffc800; }
+        .conn-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+        /* MESSAGES AREA */
+        .messages-wrap {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 16px;
+            background: #1a1a24;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .messages-wrap::-webkit-scrollbar { width: 4px; }
+        .messages-wrap::-webkit-scrollbar-track { background: transparent; }
+        .messages-wrap::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+        /* DATE DIVIDER */
+        .date-divider {
+            text-align: center;
+            margin: 8px 0;
+        }
+        .date-divider span {
+            background: rgba(255,255,255,0.06);
+            color: var(--muted);
+            font-size: 11px;
+            padding: 4px 14px;
+            border-radius: 100px;
+        }
+
+        /* MESSAGE BUBBLES */
+        .msg-row { display: flex; align-items: flex-end; gap: 8px; max-width: 75%; animation: msgIn 0.25s ease; }
+        @keyframes msgIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .msg-row.sent { margin-left: auto; flex-direction: row-reverse; }
+        .msg-avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: var(--accent);
+            color: white;
+            font-size: 12px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-family: 'Syne', sans-serif;
+        }
+        .msg-row.sent .msg-avatar { background: rgba(91,79,255,0.5); }
+        .msg-body { min-width: 0; }
+        .msg-sender {
+            font-size: 11px;
+            color: var(--muted);
+            margin-bottom: 4px;
+            padding-left: 4px;
+        }
+        .msg-row.sent .msg-sender { text-align: right; padding-left: 0; padding-right: 4px; }
+        .msg-bubble {
+            padding: 10px 14px;
+            border-radius: 16px;
+            font-size: 15px;
+            line-height: 1.5;
+            word-break: break-word;
+            max-width: 100%;
+        }
+        .msg-row.received .msg-bubble {
+            background: var(--recv-bg);
+            color: var(--ink);
+            border-radius: 4px 16px 16px 16px;
+        }
+        .msg-row.sent .msg-bubble {
+            background: var(--sent-bg);
+            color: white;
+            border-radius: 16px 4px 16px 16px;
+        }
+        /* Sign language message */
+        .msg-bubble.sign-msg {
+            background: transparent;
+            padding: 0;
+        }
+        .sign-images-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding: 6px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 12px;
+        }
+        .sign-images-row.sent-signs { background: rgba(255,255,255,0.15); }
+        .sign-char { text-align: center; }
+        .sign-char img { width: 44px; height: 44px; border-radius: 6px; background: white; padding: 3px; }
+        .sign-char span { display: block; font-size: 10px; color: var(--muted); margin-top: 2px; }
+        /* Emoji message */
+        .msg-bubble.emoji-msg {
+            font-size: 28px;
+            background: transparent;
+            padding: 4px 0;
+            letter-spacing: 3px;
+        }
+        .msg-row.sent .msg-bubble.emoji-msg { background: transparent; }
+
+        .msg-time {
+            font-size: 11px;
+            color: var(--muted);
+            text-align: right;
+            margin-top: 4px;
+            padding-right: 4px;
+        }
+        .msg-row.received .msg-time { text-align: left; padding-left: 4px; }
+
+        /* Error banner */
+        .error-banner {
+            background: rgba(255,59,92,0.15);
+            border-top: 1px solid rgba(255,59,92,0.3);
+            color: #ff3b5c;
+            padding: 10px 20px;
+            text-align: center;
+            font-size: 13px;
+            display: none;
+            flex-shrink: 0;
+        }
+        .error-banner.show { display: block; }
+
+        /* INPUT AREA */
+        .input-area {
+            background: var(--ink);
+            border-top: 1px solid rgba(255,255,255,0.08);
+            padding: 14px 16px;
+            flex-shrink: 0;
+        }
+        .mode-strip {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 12px;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        .mode-strip::-webkit-scrollbar { display: none; }
+        .mode-pill {
+            padding: 6px 14px;
+            border-radius: 100px;
+            border: 1.5px solid rgba(255,255,255,0.12);
+            background: transparent;
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+        .mode-pill.active { background: rgba(91,79,255,0.3); border-color: var(--accent); color: white; }
+        .mode-pill:hover:not(.active) { border-color: rgba(255,255,255,0.3); color: rgba(255,255,255,0.7); }
+
+        .input-row {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+        #msgInput {
+            flex: 1;
+            padding: 12px 16px;
+            background: rgba(255,255,255,0.07);
+            border: 1.5px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            color: white;
+            font-size: 14px;
+            font-family: 'DM Sans', sans-serif;
+            resize: none;
+            max-height: 120px;
+            transition: border-color 0.2s;
+        }
+        #msgInput::placeholder { color: rgba(255,255,255,0.3); }
+        #msgInput:focus { outline: none; border-color: var(--accent); }
+
+        /* AI Emoji generate mini button */
+        .ai-btn {
+            padding: 12px 14px;
+            background: rgba(255,107,53,0.2);
+            border: 1.5px solid rgba(255,107,53,0.3);
+            border-radius: 12px;
+            color: var(--accent2);
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .ai-btn:hover { background: rgba(255,107,53,0.3); }
+        .send-btn {
+            padding: 12px 20px;
+            background: var(--accent);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-family: 'Syne', sans-serif;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .send-btn:hover { background: #4a3fe0; }
+        .send-btn:disabled { background: rgba(255,255,255,0.1); cursor: not-allowed; }
+
+        /* AI Emoji Popup */
+        .ai-popup {
+            position: absolute;
+            bottom: 100%;
+            right: 0;
+            left: 0;
+            background: #1e1e2e;
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 8px;
+            display: none;
+            z-index: 100;
+        }
+        .ai-popup.show { display: block; animation: popUp 0.2s ease; }
+        @keyframes popUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .ai-popup h4 {
+            font-family: 'Syne', sans-serif;
+            color: white;
+            font-size: 13px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .ai-result {
+            font-size: 28px;
+            padding: 10px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            min-height: 50px;
+            text-align: center;
+            margin-bottom: 10px;
+            letter-spacing: 3px;
+        }
+        .ai-result.loading { font-size: 14px; color: var(--muted); display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .ai-actions { display: flex; gap: 8px; }
+        .ai-action-btn {
+            flex: 1;
+            padding: 8px;
+            border-radius: 8px;
+            border: none;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .ai-use { background: var(--accent); color: white; }
+        .ai-dismiss { background: rgba(255,255,255,0.08); color: var(--muted); }
+
+        .input-wrapper-rel { position: relative; flex: 1; display: flex; gap: 10px; align-items: flex-end; }
+
+        @media (max-width: 600px) {
+            .msg-row { max-width: 90%; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Bar -->
+    <div class="top-bar">
+        <a href="home.html" class="back-btn">←</a>
+        <div class="room-info">
+            <div class="room-name" id="roomTitle">Chat Room</div>
+            <div class="room-meta" id="roomMeta">Connecting…</div>
+        </div>
+        <div class="conn-badge connecting" id="connBadge">
+            <div class="conn-dot"></div>
+            <span id="connLabel">Connecting</span>
+        </div>
+    </div>
+
+    <!-- Messages -->
+    <div class="messages-wrap" id="messagesWrap">
+        <!-- Messages render here -->
+    </div>
+
+    <!-- Error Banner -->
+    <div class="error-banner" id="errorBanner"></div>
+
+    <!-- Input Area -->
+    <div class="input-area">
+        <div class="mode-strip">
+            <button class="mode-pill active" data-mode="text" onclick="setMode('text',this)">📝 Text</button>
+            <button class="mode-pill" data-mode="sign" onclick="setMode('sign',this)">✋ Sign</button>
+            <button class="mode-pill" data-mode="emoji" onclick="setMode('emoji',this)">😊 Emoji</button>
+        </div>
+        <div class="input-row">
+            <div class="input-wrapper-rel">
+                <textarea id="msgInput" rows="1" placeholder="Type a message…"></textarea>
+                <div class="ai-popup" id="aiPopup">
+                    <h4>✨ AI Emoji</h4>
+                    <div class="ai-result" id="aiResult">Press generate to create emojis</div>
+                    <div class="ai-actions">
+                        <button class="ai-action-btn ai-use" onclick="useAiEmoji()">Use this ✓</button>
+                        <button class="ai-action-btn ai-dismiss" onclick="closeAiPopup()">Dismiss</button>
+                    </div>
+                </div>
+            </div>
+            <button class="ai-btn" id="aiBtn" onclick="toggleAiPopup()" title="Generate AI emoji from your text">✨</button>
+            <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled>Send</button>
+        </div>
+    </div>
+
+<script>
+    const API_URL = 'http://localhost:8000';
+    const WS_URL = 'ws://localhost:8000';
+
+    const params = new URLSearchParams(window.location.search);
+    const roomId = params.get('roomId');
+    const roomName = params.get('roomName');
+    const token = localStorage.getItem('token');
+    const userId = localStorage.getItem('userId');
+    const username = localStorage.getItem('username');
+
+    if (!token || !userId || !roomId) {
+        alert('Authentication required.');
+        window.location.href = 'home.html';
+    }
+
+    document.getElementById('roomTitle').textContent = roomName || 'Chat Room';
+    document.getElementById('roomMeta').textContent = `Room ID: ${roomId}`;
+
+    let ws = null, isConnected = false, reconnectAttempts = 0;
+    const maxReconnects = 5;
+    let currentMode = 'text';
+    let aiEmojiResult = '';
+
+    const signDict = {
+        "A":"https://upload.wikimedia.org/wikipedia/commons/2/27/Sign_language_A.svg","B":"https://upload.wikimedia.org/wikipedia/commons/1/18/Sign_language_B.svg","C":"https://upload.wikimedia.org/wikipedia/commons/e/e3/Sign_language_C.svg","D":"https://upload.wikimedia.org/wikipedia/commons/0/06/Sign_language_D.svg","E":"https://upload.wikimedia.org/wikipedia/commons/c/cd/Sign_language_E.svg","F":"https://upload.wikimedia.org/wikipedia/commons/8/8f/Sign_language_F.svg","G":"https://upload.wikimedia.org/wikipedia/commons/d/d9/Sign_language_G.svg","H":"https://upload.wikimedia.org/wikipedia/commons/9/97/Sign_language_H.svg","I":"https://upload.wikimedia.org/wikipedia/commons/1/10/Sign_language_I.svg","J":"https://upload.wikimedia.org/wikipedia/commons/b/b1/Sign_language_J.svg","K":"https://upload.wikimedia.org/wikipedia/commons/9/97/Sign_language_K.svg","L":"https://upload.wikimedia.org/wikipedia/commons/d/d2/Sign_language_L.svg","M":"https://upload.wikimedia.org/wikipedia/commons/c/c4/Sign_language_M.svg","N":"https://upload.wikimedia.org/wikipedia/commons/e/e6/Sign_language_N.svg","O":"https://freesvg.org/img/Deaf-Alphabet-O.png","P":"https://freesvg.org/img/Deaf-Alphabet-P.png","Q":"https://freesvg.org/img/Deaf-Alphabet-Q.png","R":"https://freesvg.org/img/Deaf-Alphabet-R.png","S":"https://upload.wikimedia.org/wikipedia/commons/3/3f/Sign_language_S.svg","T":"https://upload.wikimedia.org/wikipedia/commons/1/13/Sign_language_T.svg","U":"https://upload.wikimedia.org/wikipedia/commons/7/7c/Sign_language_U.svg","V":"https://freesvg.org/img/Deaf-Alphabet-V.png","W":"https://upload.wikimedia.org/wikipedia/commons/8/83/Sign_language_W.svg","X":"https://freesvg.org/img/Deaf-Alphabet-X.png","Y":"https://upload.wikimedia.org/wikipedia/commons/1/1d/Sign_language_Y.svg","Z":"https://freesvg.org/img/Deaf-Alphabet-Z.png"
+    };
+
+    // Mode switching
+    function setMode(mode, btn) {
+        currentMode = mode;
+        document.querySelectorAll('.mode-pill').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        const input = document.getElementById('msgInput');
+        const placeholders = { text: 'Type a message…', sign: 'Type letters to send as sign language…', emoji: 'Type text, then use ✨ to generate emoji…' };
+        input.placeholder = placeholders[mode];
+        // Show/hide AI button
+        document.getElementById('aiBtn').style.display = mode === 'emoji' ? 'flex' : 'none';
+    }
+    document.getElementById('aiBtn').style.display = 'none';
+
+    // WebSocket
+    function setConnStatus(state) {
+        const badge = document.getElementById('connBadge');
+        const label = document.getElementById('connLabel');
+        badge.className = `conn-badge ${state}`;
+        const labels = { connected: 'Connected', disconnected: 'Disconnected', connecting: 'Connecting' };
+        label.textContent = labels[state] || state;
+    }
+
+    function connectWS() {
+        setConnStatus('connecting');
+        document.getElementById('sendBtn').disabled = true;
+
+        try {
+            ws = new WebSocket(`${WS_URL}/ws/${roomId}/${userId}`);
+
+            ws.onopen = () => {
+                isConnected = true;
+                reconnectAttempts = 0;
+                setConnStatus('connected');
+                document.getElementById('sendBtn').disabled = false;
+                loadMessages();
+            };
+
+            ws.onmessage = (ev) => {
+                try {
+                    const data = JSON.parse(ev.data);
+                    if (data.type === 'new_message') renderMessage(data, true);
+                } catch (_) {}
+            };
+
+            ws.onerror = () => showError('Connection error. Is the backend running?');
+
+            ws.onclose = (ev) => {
+                isConnected = false;
+                setConnStatus('disconnected');
+                document.getElementById('sendBtn').disabled = true;
+                if (reconnectAttempts < maxReconnects) {
+                    reconnectAttempts++;
+                    setTimeout(connectWS, Math.min(1000 * Math.pow(2, reconnectAttempts), 10000));
+                } else {
+                    showError('Unable to reconnect. Please refresh.');
+                }
+            };
+        } catch (e) {
+            showError('Failed to connect');
+        }
+    }
+
+    async function loadMessages() {
+        try {
+            const res = await fetch(`${API_URL}/api/rooms/${roomId}/messages?token=${token}`);
+            if (!res.ok) throw new Error();
+            const data = await res.json();
+            const wrap = document.getElementById('messagesWrap');
+            wrap.innerHTML = '';
+            data.messages.forEach(m => renderMessage({ sender_id: m.sender_id, username: m.username, message: m.message, message_type: m.message_type, timestamp: m.timestamp }, false));
+            wrap.scrollTop = wrap.scrollHeight;
+        } catch (_) {
+            showError('Failed to load message history');
+        }
+    }
+
+    function renderMessage(data, scroll) {
+        const wrap = document.getElementById('messagesWrap');
+        const isSent = String(data.sender_id) === String(userId);
+        const time = new Date(data.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        const initials = (data.username || '?').slice(0, 2).toUpperCase();
+
+        const row = document.createElement('div');
+        row.className = `msg-row ${isSent ? 'sent' : 'received'}`;
+
+        let bubbleContent = '';
+        const mtype = data.message_type || 'text';
+
+        if (mtype === 'sign_language') {
+            const imgsHtml = data.message.toUpperCase().split('').map(c => {
+                if (c === ' ') return '<div style="width:16px"></div>';
+                if (signDict[c]) return `<div class="sign-char"><img src="${signDict[c]}" alt="${c}"><span>${c}</span></div>`;
+                return '';
+            }).join('');
+            bubbleContent = `<div class="msg-bubble sign-msg"><div class="sign-images-row ${isSent ? 'sent-signs' : ''}">${imgsHtml}</div></div>`;
+        } else if (mtype === 'emoji') {
+            bubbleContent = `<div class="msg-bubble emoji-msg">${escapeHtml(data.message)}</div>`;
+        } else {
+            bubbleContent = `<div class="msg-bubble">${escapeHtml(data.message)}</div>`;
+        }
+
+        row.innerHTML = `
+            <div class="msg-avatar">${initials}</div>
+            <div class="msg-body">
+                <div class="msg-sender">${isSent ? 'You' : escapeHtml(data.username)}</div>
+                ${bubbleContent}
+                <div class="msg-time">${time}</div>
+            </div>`;
+
+        wrap.appendChild(row);
+        if (scroll) wrap.scrollTop = wrap.scrollHeight;
+    }
+
+    function sendMessage() {
+        const input = document.getElementById('msgInput');
+        const msg = input.value.trim();
+        if (!msg || !ws || !isConnected) return;
+
+        ws.send(JSON.stringify({
+            type: 'chat_message',
+            message: msg,
+            message_type: currentMode === 'sign' ? 'sign_language' : currentMode === 'emoji' ? 'emoji' : 'text'
+        }));
+        input.value = '';
+        input.style.height = 'auto';
+    }
+
+    // Auto-resize textarea
+    document.getElementById('msgInput').addEventListener('input', function () {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+    });
+    document.getElementById('msgInput').addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    });
+
+    // AI Emoji
+    let aiPopupOpen = false;
+    function toggleAiPopup() {
+        aiPopupOpen = !aiPopupOpen;
+        const popup = document.getElementById('aiPopup');
+        if (aiPopupOpen) {
+            popup.classList.add('show');
+            generateAiEmoji();
+        } else {
+            popup.classList.remove('show');
+        }
+    }
+
+    function closeAiPopup() {
+        aiPopupOpen = false;
+        document.getElementById('aiPopup').classList.remove('show');
+    }
+
+    async function generateAiEmoji() {
+        const text = document.getElementById('msgInput').value.trim();
+        const resultEl = document.getElementById('aiResult');
+        if (!text) {
+            resultEl.className = 'ai-result loading';
+            resultEl.textContent = 'Type something first, then click ✨';
+            return;
+        }
+        resultEl.className = 'ai-result loading';
+        resultEl.innerHTML = '<div style="width:18px;height:18px;border:2px solid rgba(255,255,255,0.2);border-top-color:white;border-radius:50%;animation:spin 0.8s linear infinite"></div> Generating…';
+        try {
+            const res = await fetch(`${API_URL}/api/text-to-emoji`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, mode: 'story' })
+            });
+            if (!res.ok) throw new Error();
+            const data = await res.json();
+            aiEmojiResult = data.emojis;
+            resultEl.className = 'ai-result';
+            resultEl.textContent = data.emojis;
+        } catch (e) {
+            resultEl.className = 'ai-result loading';
+            resultEl.textContent = '⚠️ Error — check backend';
+        }
+    }
+
+    function useAiEmoji() {
+        if (!aiEmojiResult) return;
+        document.getElementById('msgInput').value = aiEmojiResult;
+        closeAiPopup();
+        // Auto-switch to emoji mode
+        currentMode = 'emoji';
+        document.querySelectorAll('.mode-pill').forEach(p => {
+            p.classList.toggle('active', p.dataset.mode === 'emoji');
+        });
+    }
+
+    function showError(msg) {
+        const b = document.getElementById('errorBanner');
+        b.textContent = msg;
+        b.classList.add('show');
+        setTimeout(() => b.classList.remove('show'), 5000);
+    }
+
+    function escapeHtml(t) {
+        const d = document.createElement('div');
+        d.textContent = t;
+        return d.innerHTML;
+    }
+
+    connectWS();
+
+    window.addEventListener('beforeunload', () => { if (ws) ws.close(); });
+
+    // Close AI popup on outside click
+    document.addEventListener('click', e => {
+        if (aiPopupOpen && !e.target.closest('.input-wrapper-rel') && !e.target.closest('#aiBtn')) {
+            closeAiPopup();
+        }
+    });
+</script>
+</body>
+</html>

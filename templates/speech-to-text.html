@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speech to Text</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        .header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        .header h1 { color: #667eea; font-size: 24px; }
+        .back-btn {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .content-box {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        .mic-container {
+            text-align: center;
+            margin: 30px 0;
+        }
+        .mic-button {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: #667eea;
+            border: none;
+            cursor: pointer;
+            font-size: 64px;
+            color: white;
+            transition: all 0.3s;
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        .mic-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 30px rgba(102, 126, 234, 0.6);
+        }
+        .mic-button.recording {
+            background: #e74c3c;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 5px 20px rgba(231, 76, 60, 0.4); }
+            50% { transform: scale(1.1); box-shadow: 0 10px 40px rgba(231, 76, 60, 0.8); }
+        }
+        .status {
+            text-align: center;
+            font-size: 18px;
+            color: #666;
+            margin: 20px 0;
+            font-weight: 600;
+        }
+        .status.recording { color: #e74c3c; }
+        .transcript-area {
+            margin: 30px 0;
+            padding: 25px;
+            background: #f9f9f9;
+            border-radius: 10px;
+            min-height: 200px;
+        }
+        .transcript-text {
+            font-size: 18px;
+            line-height: 1.8;
+            color: #333;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+        .btn {
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+        .btn:hover { background: #5568d3; }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
+        .btn.danger { background: #e74c3c; }
+        .btn.danger:hover { background: #c0392b; }
+        .interim { color: #999; font-style: italic; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎤 Speech to Text</h1>
+            <a href="home.html" class="back-btn">← Back</a>
+        </div>
+
+        <div class="content-box">
+            <h2 style="text-align: center; color: #667eea; margin-bottom: 20px;">
+                Click the microphone to start speaking
+            </h2>
+            
+            <div class="mic-container">
+                <button class="mic-button" id="micButton" onclick="toggleRecording()">🎤</button>
+            </div>
+            
+            <div id="status" class="status">Click the microphone to start</div>
+            
+            <div class="transcript-area">
+                <div id="transcriptText" class="transcript-text">Your speech will be transcribed here...</div>
+            </div>
+            
+            <div class="controls">
+                <button class="btn" onclick="clearTranscript()">Clear</button>
+                <button class="btn" onclick="copyTranscript()">📋 Copy</button>
+                <button class="btn" onclick="speakTranscript()">🔊 Read Aloud</button>
+                <button class="btn" onclick="downloadTranscript()">💾 Download</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let recognition = null;
+        let isRecording = false;
+        let finalTranscript = '';
+        let interimTranscript = '';
+
+        function initSpeechRecognition() {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                alert('Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari.');
+                return false;
+            }
+            
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+            
+            recognition.onstart = () => {
+                isRecording = true;
+                document.getElementById('micButton').classList.add('recording');
+                document.getElementById('status').textContent = '● Recording...';
+                document.getElementById('status').classList.add('recording');
+            };
+            
+            recognition.onend = () => {
+                isRecording = false;
+                document.getElementById('micButton').classList.remove('recording');
+                document.getElementById('status').textContent = 'Click the microphone to start';
+                document.getElementById('status').classList.remove('recording');
+            };
+            
+            recognition.onresult = (event) => {
+                interimTranscript = '';
+                
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript + ' ';
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+                
+                updateTranscript();
+            };
+            
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                if (event.error === 'no-speech') {
+                    document.getElementById('status').textContent = 'No speech detected. Try again.';
+                } else if (event.error === 'not-allowed') {
+                    alert('Microphone access denied. Please allow microphone access.');
+                }
+            };
+            
+            return true;
+        }
+
+        function toggleRecording() {
+            if (!recognition && !initSpeechRecognition()) {
+                return;
+            }
+            
+            if (isRecording) {
+                recognition.stop();
+            } else {
+                recognition.start();
+            }
+        }
+
+        function updateTranscript() {
+            const transcriptDiv = document.getElementById('transcriptText');
+            
+            if (!finalTranscript && !interimTranscript) {
+                transcriptDiv.innerHTML = 'Your speech will be transcribed here...';
+                return;
+            }
+            
+            let html = finalTranscript;
+            if (interimTranscript) {
+                html += `<span class="interim">${interimTranscript}</span>`;
+            }
+            
+            transcriptDiv.innerHTML = html;
+        }
+
+        function clearTranscript() {
+            finalTranscript = '';
+            interimTranscript = '';
+            updateTranscript();
+        }
+
+        function copyTranscript() {
+            if (!finalTranscript) {
+                alert('No transcript to copy');
+                return;
+            }
+            
+            navigator.clipboard.writeText(finalTranscript.trim()).then(() => {
+                alert('Transcript copied to clipboard!');
+            });
+        }
+
+        function speakTranscript() {
+            if (!finalTranscript) {
+                alert('No transcript to speak');
+                return;
+            }
+            
+            const utterance = new SpeechSynthesisUtterance(finalTranscript.trim());
+            speechSynthesis.speak(utterance);
+        }
+
+        function downloadTranscript() {
+            if (!finalTranscript) {
+                alert('No transcript to download');
+                return;
+            }
+            
+            const blob = new Blob([finalTranscript.trim()], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `transcript_${new Date().getTime()}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            if (!initSpeechRecognition()) {
+                document.getElementById('status').textContent = 'Speech recognition not supported';
+                document.getElementById('micButton').disabled = true;
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign to Speech</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        .header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        .header h1 { color: #667eea; font-size: 24px; }
+        .back-btn {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .content-box {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        video {
+            width: 100%;
+            max-width: 500px;
+            border-radius: 10px;
+            margin: 20px auto;
+            display: block;
+            background: #000;
+        }
+        canvas { display: none; }
+        .output-area {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 10px;
+            min-height: 100px;
+        }
+        .output-text {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+            text-align: center;
+            word-wrap: break-word;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+        .btn {
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+        .btn:hover { background: #5568d3; }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
+        .btn.danger { background: #e74c3c; }
+        .btn.danger:hover { background: #c0392b; }
+        .btn.success { background: #27ae60; }
+        .btn.success:hover { background: #229954; }
+        .countdown {
+            font-size: 48px;
+            font-weight: bold;
+            color: #667eea;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .status {
+            text-align: center;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        .status.success { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+        .voice-controls {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f0f0f0;
+            border-radius: 10px;
+        }
+        .voice-controls label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #333;
+        }
+        .voice-controls select, .voice-controls input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        .range-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>✋➡️🔊 Sign to Speech</h1>
+            <a href="home.html" class="back-btn">← Back</a>
+        </div>
+
+        <div class="content-box">
+            <h2 style="text-align: center; color: #667eea; margin-bottom: 20px;">
+                Show signs and hear them spoken
+            </h2>
+            
+            <video id="video" autoplay playsinline></video>
+            <canvas id="canvas"></canvas>
+            
+            <div id="countdown" class="countdown"></div>
+            <div id="status" class="status" style="display: none;"></div>
+            
+            <div class="output-area">
+                <div id="outputText" class="output-text">Your text will appear here...</div>
+            </div>
+            
+            <div class="controls">
+                <button class="btn" onclick="startCapture()" id="captureBtn">Capture Sign</button>
+                <button class="btn" onclick="addSpace()">Add Space</button>
+                <button class="btn" onclick="removeLastChar()">Remove Last</button>
+                <button class="btn success" onclick="speakText()">🔊 Speak All</button>
+                <button class="btn danger" onclick="clearText()">Clear All</button>
+            </div>
+
+            <div class="voice-controls">
+                <label>Voice Settings</label>
+                <select id="voiceSelect"></select>
+                
+                <div class="range-label">
+                    <label>Speed</label>
+                    <span id="rateValue">1.0x</span>
+                </div>
+                <input type="range" id="rateRange" min="0.5" max="2" step="0.1" value="1" oninput="updateRate()">
+                
+                <div class="range-label">
+                    <label>Pitch</label>
+                    <span id="pitchValue">1.0</span>
+                </div>
+                <input type="range" id="pitchRange" min="0" max="2" step="0.1" value="1" oninput="updatePitch()">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8000';
+        let stream = null;
+        let currentText = '';
+        let isCapturing = false;
+        let voices = [];
+
+        function loadVoices() {
+            voices = speechSynthesis.getVoices();
+            const select = document.getElementById('voiceSelect');
+            select.innerHTML = '';
+            voices.forEach((voice, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = `${voice.name} (${voice.lang})`;
+                if (voice.default) option.selected = true;
+                select.appendChild(option);
+            });
+        }
+
+        function updateRate() {
+            document.getElementById('rateValue').textContent = document.getElementById('rateRange').value + 'x';
+        }
+
+        function updatePitch() {
+            document.getElementById('pitchValue').textContent = document.getElementById('pitchRange').value;
+        }
+
+        async function initCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+                document.getElementById('video').srcObject = stream;
+            } catch (error) {
+                alert('Camera access denied: ' + error.message);
+            }
+        }
+
+        function countdown(callback) {
+            const countdownDiv = document.getElementById('countdown');
+            let count = 3;
+            countdownDiv.textContent = count;
+            
+            const interval = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    countdownDiv.textContent = count;
+                } else {
+                    countdownDiv.textContent = '📸';
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        countdownDiv.textContent = '';
+                        callback();
+                    }, 200);
+                }
+            }, 1000);
+        }
+
+        async function startCapture() {
+            if (isCapturing) return;
+            isCapturing = true;
+            
+            const btn = document.getElementById('captureBtn');
+            btn.disabled = true;
+            
+            countdown(async () => {
+                await captureAndAnalyze();
+                btn.disabled = false;
+                isCapturing = false;
+            });
+        }
+
+        async function captureAndAnalyze() {
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('canvas');
+            const statusDiv = document.getElementById('status');
+            
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            
+            statusDiv.textContent = 'Analyzing...';
+            statusDiv.className = 'status';
+            statusDiv.style.display = 'block';
+            
+            canvas.toBlob(async (blob) => {
+                try {
+                    const formData = new FormData();
+                    formData.append('file', blob, 'capture.jpg');
+                    
+                    const response = await fetch(`${API_URL}/api/sign-to-text`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    if (!response.ok) throw new Error('Analysis failed');
+                    
+                    const data = await response.json();
+                    const letter = data.result.trim().toUpperCase();
+                    
+                    currentText += letter;
+                    updateDisplay();
+                    speakLetter(letter);
+                    
+                    statusDiv.textContent = `Added: ${letter}`;
+                    statusDiv.className = 'status success';
+                    
+                    setTimeout(() => {
+                        statusDiv.style.display = 'none';
+                    }, 2000);
+                } catch (error) {
+                    statusDiv.textContent = 'Error: ' + error.message;
+                    statusDiv.className = 'status error';
+                }
+            }, 'image/jpeg', 0.85);
+        }
+
+        function updateDisplay() {
+            document.getElementById('outputText').textContent = currentText || 'Your text will appear here...';
+        }
+
+        function speakLetter(letter) {
+            const utterance = new SpeechSynthesisUtterance(letter);
+            const voiceSelect = document.getElementById('voiceSelect');
+            utterance.voice = voices[voiceSelect.value];
+            utterance.rate = parseFloat(document.getElementById('rateRange').value);
+            utterance.pitch = parseFloat(document.getElementById('pitchRange').value);
+            speechSynthesis.speak(utterance);
+        }
+
+        function speakText() {
+            if (!currentText) {
+                alert('No text to speak');
+                return;
+            }
+            
+            const utterance = new SpeechSynthesisUtterance(currentText);
+            const voiceSelect = document.getElementById('voiceSelect');
+            utterance.voice = voices[voiceSelect.value];
+            utterance.rate = parseFloat(document.getElementById('rateRange').value);
+            utterance.pitch = parseFloat(document.getElementById('pitchRange').value);
+            speechSynthesis.speak(utterance);
+        }
+
+        function addSpace() {
+            currentText += ' ';
+            updateDisplay();
+        }
+
+        function removeLastChar() {
+            currentText = currentText.slice(0, -1);
+            updateDisplay();
+        }
+
+        function clearText() {
+            currentText = '';
+            updateDisplay();
+        }
+
+        if (speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = loadVoices;
+        }
+        
+        window.addEventListener('load', () => {
+            loadVoices();
+            setTimeout(loadVoices, 100);
+        });
+
+        initCamera();
+
+        window.addEventListener('beforeunload', () => {
+            if (stream) stream.getTracks().forEach(t => t.stop());
+        });
+    </script>
+</body>
+</html>

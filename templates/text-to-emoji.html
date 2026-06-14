@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text to Emoji – SignBridge</title>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --ink: #0f0f14;
+            --paper: #f5f3ef;
+            --accent: #ff6b35;
+            --accent-light: rgba(255,107,53,0.12);
+            --purple: #5b4fff;
+            --green: #00c896;
+            --muted: #9090a0;
+            --card: #ffffff;
+            --border: #e2e0dc;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--paper);
+            min-height: 100vh;
+            color: var(--ink);
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 0;
+        }
+        .page-wrapper { position: relative; z-index: 1; max-width: 860px; margin: 0 auto; padding: 24px; }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--ink);
+            border-radius: 16px;
+            padding: 16px 24px;
+            margin-bottom: 24px;
+        }
+        .brand {
+            font-family: 'Syne', sans-serif;
+            font-weight: 800;
+            font-size: 18px;
+            color: white;
+            text-decoration: none;
+            letter-spacing: -0.3px;
+        }
+        .brand span { color: var(--accent); }
+        .back-link {
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: color 0.2s;
+        }
+        .back-link:hover { color: white; }
+
+        .hero-section {
+            text-align: center;
+            padding: 48px 24px 36px;
+        }
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--accent-light);
+            border: 1px solid rgba(255,107,53,0.3);
+            color: var(--accent);
+            padding: 6px 16px;
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+        }
+        .hero-section h1 {
+            font-family: 'Syne', sans-serif;
+            font-size: clamp(32px, 5vw, 52px);
+            font-weight: 800;
+            line-height: 1.05;
+            letter-spacing: -1.5px;
+            margin-bottom: 14px;
+        }
+        .hero-section h1 .highlight { color: var(--accent); }
+        .hero-section p {
+            color: var(--muted);
+            font-size: 16px;
+            max-width: 480px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        /* Mode selector */
+        .mode-tabs {
+            display: flex;
+            gap: 8px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 6px;
+            margin-bottom: 20px;
+        }
+        .mode-tab {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 10px;
+            background: transparent;
+            cursor: pointer;
+            font-family: 'DM Sans', sans-serif;
+            font-weight: 500;
+            font-size: 14px;
+            color: var(--muted);
+            transition: all 0.2s;
+        }
+        .mode-tab.active {
+            background: var(--ink);
+            color: white;
+        }
+
+        /* Main card */
+        .main-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            overflow: hidden;
+        }
+        .card-body { padding: 28px; }
+        
+        .input-label {
+            font-family: 'Syne', sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 10px;
+            display: block;
+        }
+        textarea {
+            width: 100%;
+            padding: 18px;
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            font-size: 16px;
+            font-family: 'DM Sans', sans-serif;
+            resize: vertical;
+            min-height: 130px;
+            background: var(--paper);
+            color: var(--ink);
+            transition: border-color 0.2s;
+            line-height: 1.6;
+        }
+        textarea:focus { outline: none; border-color: var(--accent); }
+
+        /* Quick examples */
+        .examples-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+        .example-chip {
+            padding: 6px 14px;
+            background: var(--paper);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .example-chip:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* Generate button */
+        .generate-btn {
+            width: 100%;
+            padding: 16px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-family: 'Syne', sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .generate-btn:hover { background: #e55a25; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(255,107,53,0.3); }
+        .generate-btn:disabled { background: #ccc; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        /* Loading state */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Output area */
+        .divider {
+            height: 1px;
+            background: var(--border);
+            margin: 0;
+        }
+        .output-section { padding: 28px; }
+        .output-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .output-result {
+            font-size: clamp(28px, 5vw, 48px);
+            line-height: 1.4;
+            word-break: break-word;
+            min-height: 80px;
+            padding: 20px;
+            background: var(--paper);
+            border-radius: 12px;
+            text-align: center;
+            letter-spacing: 2px;
+            transition: all 0.3s;
+        }
+        .output-result.empty {
+            color: var(--muted);
+            font-size: 15px;
+            font-style: italic;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .output-explanation {
+            margin-top: 16px;
+            padding: 16px;
+            background: rgba(91,79,255,0.05);
+            border: 1px solid rgba(91,79,255,0.15);
+            border-radius: 10px;
+            font-size: 14px;
+            color: var(--ink);
+            line-height: 1.6;
+            display: none;
+        }
+        .output-explanation.show { display: block; }
+        .output-explanation strong {
+            color: var(--purple);
+            font-weight: 600;
+        }
+
+        /* Action buttons row */
+        .action-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+        .action-btn {
+            padding: 10px 18px;
+            border-radius: 10px;
+            border: 1.5px solid var(--border);
+            background: white;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .action-btn:hover { border-color: var(--ink); }
+        .action-btn.primary { background: var(--ink); color: white; border-color: var(--ink); }
+        .action-btn.primary:hover { background: #333; }
+        .action-btn.green { border-color: var(--green); color: var(--green); }
+
+        /* History panel */
+        .history-panel {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            overflow: hidden;
+            margin-top: 20px;
+        }
+        .history-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .history-header h3 { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700; }
+        .history-items { padding: 12px; display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto; }
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 14px;
+            border-radius: 10px;
+            background: var(--paper);
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .history-item:hover { background: #eeedf0; }
+        .history-item-left { flex: 1; min-width: 0; }
+        .history-item-input {
+            font-size: 13px;
+            color: var(--muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .history-item-emoji { font-size: 20px; margin-top: 2px; }
+        .history-item-right { font-size: 22px; margin-left: 12px; }
+        .clear-history-btn {
+            background: transparent;
+            border: none;
+            color: var(--muted);
+            font-size: 13px;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .clear-history-btn:hover { color: var(--accent); }
+
+        @media (max-width: 600px) {
+            .page-wrapper { padding: 12px; }
+            .hero-section { padding: 28px 12px 24px; }
+        }
+    </style>
+</head>
+<body>
+<div class="page-wrapper">
+    <div class="top-bar">
+        <a href="home.html" class="brand">Sign<span>Bridge</span></a>
+        <a href="home.html" class="back-link">← Back to Home</a>
+    </div>
+
+    <div class="hero-section">
+        <div class="hero-badge">✨ AI-Powered</div>
+        <h1>Turn Words into<br><span class="highlight">Emoji Stories</span></h1>
+        <p>Use Claude AI to transform any text, sentence, or feeling into a vivid emoji expression.</p>
+    </div>
+
+    <div class="mode-tabs">
+        <button class="mode-tab active" onclick="setMode('story', this)">📖 Emoji Story</button>
+        <button class="mode-tab" onclick="setMode('single', this)">🎯 Best Emoji</button>
+        <button class="mode-tab" onclick="setMode('sentence', this)">✍️ Word-by-Word</button>
+        <button class="mode-tab" onclick="setMode('mood', this)">🎨 Mood Board</button>
+    </div>
+
+    <div class="main-card">
+        <div class="card-body">
+            <label class="input-label">Your Text</label>
+            <textarea id="inputText" placeholder="Type anything… a sentence, feeling, story, or message."></textarea>
+
+            <div class="examples-row">
+                <span style="font-size:13px;color:var(--muted);align-self:center;">Try:</span>
+                <button class="example-chip" onclick="setExample('I love sunny days at the beach')">🌊 Beach day</button>
+                <button class="example-chip" onclick="setExample('I am feeling anxious about the big presentation tomorrow')">😰 Anxious</button>
+                <button class="example-chip" onclick="setExample('Happy birthday! Wishing you joy and success')">🎂 Birthday</button>
+                <button class="example-chip" onclick="setExample('The team worked hard and won the championship')">🏆 Victory</button>
+            </div>
+
+            <button class="generate-btn" id="generateBtn" onclick="generateEmoji()">
+                <span id="btnIcon">✨</span>
+                <span id="btnText">Generate Emoji</span>
+            </button>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="output-section">
+            <div class="output-header">
+                <label class="input-label" style="margin:0">Result</label>
+                <span id="modeLabel" style="font-size:12px;color:var(--muted);background:var(--paper);padding:4px 12px;border-radius:100px;">Emoji Story</span>
+            </div>
+
+            <div class="output-result empty" id="outputResult">
+                Your emoji will appear here ✨
+            </div>
+
+            <div class="output-explanation" id="outputExplanation"></div>
+
+            <div class="action-row" id="actionRow" style="display:none;">
+                <button class="action-btn primary" onclick="copyResult()">📋 Copy Emojis</button>
+                <button class="action-btn green" onclick="speakResult()">🔊 Read Aloud</button>
+                <button class="action-btn" onclick="shareResult()">📤 Share</button>
+                <button class="action-btn" onclick="clearOutput()">🗑️ Clear</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="history-panel" id="historyPanel" style="display:none;">
+        <div class="history-header">
+            <h3>Recent Generations</h3>
+            <button class="clear-history-btn" onclick="clearHistory()">Clear all</button>
+        </div>
+        <div class="history-items" id="historyItems"></div>
+    </div>
+</div>
+
+<script>
+    const API_URL = 'http://localhost:8000';
+    let currentMode = 'story';
+    let history = JSON.parse(localStorage.getItem('emojiHistory') || '[]');
+    let lastResult = '';
+
+    const modeConfig = {
+        story: {
+            label: 'Emoji Story',
+            prompt: (text) => `Convert the following text into a creative emoji story. Use multiple emojis to narrate it visually. Then on a new line starting with "EXPLAIN:", briefly explain what the emojis represent.
+
+Text: "${text}"
+
+Respond with:
+Line 1: The emoji story (emojis only, no text)
+Line 2: EXPLAIN: [brief explanation]`
+        },
+        single: {
+            label: 'Best Emoji',
+            prompt: (text) => `Find the single BEST emoji (or at most 3) that perfectly represents the following text. Choose the most expressive and fitting option. Then on a new line starting with "EXPLAIN:", briefly explain your choice.
+
+Text: "${text}"
+
+Respond with:
+Line 1: The emoji(s) only
+Line 2: EXPLAIN: [why you chose this]`
+        },
+        sentence: {
+            label: 'Word-by-Word',
+            prompt: (text) => `Replace each significant word in the following text with the most fitting emoji. Keep small words (a, the, is, etc.) as text. Then on a new line starting with "EXPLAIN:", note what you translated.
+
+Text: "${text}"
+
+Respond with:
+Line 1: The translated sentence with emojis mixed in
+Line 2: EXPLAIN: [brief note]`
+        },
+        mood: {
+            label: 'Mood Board',
+            prompt: (text) => `Create an emoji mood board for the following text — a collection of 6-12 emojis that capture the feelings, themes, atmosphere, and essence. Then on a new line starting with "EXPLAIN:", explain the mood.
+
+Text: "${text}"
+
+Respond with:
+Line 1: The mood board emojis (spaced out nicely)
+Line 2: EXPLAIN: [mood description]`
+        }
+    };
+
+    function setMode(mode, btn) {
+        currentMode = mode;
+        document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('modeLabel').textContent = modeConfig[mode].label;
+    }
+
+    function setExample(text) {
+        document.getElementById('inputText').value = text;
+    }
+
+    async function generateEmoji() {
+        const text = document.getElementById('inputText').value.trim();
+        if (!text) {
+            shakeElement(document.getElementById('inputText'));
+            return;
+        }
+
+        const btn = document.getElementById('generateBtn');
+        const icon = document.getElementById('btnIcon');
+        const btnText = document.getElementById('btnText');
+
+        btn.disabled = true;
+        icon.innerHTML = '<div class="spinner"></div>';
+        btnText.textContent = 'Generating…';
+
+        const outputEl = document.getElementById('outputResult');
+        outputEl.className = 'output-result empty';
+        outputEl.textContent = 'AI is thinking…';
+        document.getElementById('outputExplanation').className = 'output-explanation';
+        document.getElementById('actionRow').style.display = 'none';
+
+        try {
+            const response = await fetch(`${API_URL}/api/text-to-emoji`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, mode: currentMode })
+            });
+
+            if (!response.ok) throw new Error('API error');
+            const data = await response.json();
+
+            lastResult = data.emojis;
+            outputEl.className = 'output-result';
+            outputEl.textContent = data.emojis;
+
+            if (data.explanation) {
+                const expEl = document.getElementById('outputExplanation');
+                expEl.innerHTML = `<strong>What it means:</strong> ${data.explanation}`;
+                expEl.className = 'output-explanation show';
+            }
+
+            document.getElementById('actionRow').style.display = 'flex';
+            addToHistory(text, data.emojis);
+        } catch (e) {
+            outputEl.className = 'output-result empty';
+            outputEl.textContent = '⚠️ Error: Could not generate. Check your backend is running.';
+        } finally {
+            btn.disabled = false;
+            icon.textContent = '✨';
+            btnText.textContent = 'Generate Emoji';
+        }
+    }
+
+    function copyResult() {
+        if (!lastResult) return;
+        navigator.clipboard.writeText(lastResult).then(() => {
+            const btn = event.target;
+            const orig = btn.textContent;
+            btn.textContent = '✓ Copied!';
+            setTimeout(() => btn.textContent = orig, 2000);
+        });
+    }
+
+    function speakResult() {
+        if (!lastResult) return;
+        const u = new SpeechSynthesisUtterance(document.getElementById('inputText').value);
+        speechSynthesis.speak(u);
+    }
+
+    function shareResult() {
+        if (!lastResult) return;
+        const text = document.getElementById('inputText').value;
+        const shareData = {
+            title: 'My Emoji Story',
+            text: `"${text}" = ${lastResult}`,
+        };
+        if (navigator.share) {
+            navigator.share(shareData);
+        } else {
+            navigator.clipboard.writeText(`"${text}" = ${lastResult}`);
+            alert('Copied to clipboard!');
+        }
+    }
+
+    function clearOutput() {
+        lastResult = '';
+        const o = document.getElementById('outputResult');
+        o.className = 'output-result empty';
+        o.textContent = 'Your emoji will appear here ✨';
+        document.getElementById('outputExplanation').className = 'output-explanation';
+        document.getElementById('actionRow').style.display = 'none';
+    }
+
+    function addToHistory(input, emoji) {
+        history.unshift({ input, emoji, mode: currentMode, time: Date.now() });
+        if (history.length > 20) history.pop();
+        localStorage.setItem('emojiHistory', JSON.stringify(history));
+        renderHistory();
+    }
+
+    function renderHistory() {
+        const panel = document.getElementById('historyPanel');
+        const list = document.getElementById('historyItems');
+        if (!history.length) { panel.style.display = 'none'; return; }
+        panel.style.display = 'block';
+        list.innerHTML = history.map((h, i) => `
+            <div class="history-item" onclick="reloadHistory(${i})">
+                <div class="history-item-left">
+                    <div class="history-item-input">${escapeHtml(h.input)}</div>
+                    <div class="history-item-emoji">${h.emoji.slice(0, 8)}</div>
+                </div>
+                <div class="history-item-right">${h.emoji.slice(0, 3)}</div>
+            </div>`).join('');
+    }
+
+    function reloadHistory(i) {
+        const h = history[i];
+        document.getElementById('inputText').value = h.input;
+        lastResult = h.emoji;
+        const o = document.getElementById('outputResult');
+        o.className = 'output-result';
+        o.textContent = h.emoji;
+        document.getElementById('actionRow').style.display = 'flex';
+    }
+
+    function clearHistory() {
+        history = [];
+        localStorage.removeItem('emojiHistory');
+        renderHistory();
+    }
+
+    function shakeElement(el) {
+        el.style.animation = 'none';
+        el.style.borderColor = '#ff3b5c';
+        setTimeout(() => { el.style.borderColor = ''; }, 1200);
+    }
+
+    function escapeHtml(t) {
+        const d = document.createElement('div');
+        d.textContent = t;
+        return d.innerHTML;
+    }
+
+    // Enter key shortcut
+    document.getElementById('inputText').addEventListener('keydown', e => {
+        if (e.key === 'Enter' && e.ctrlKey) generateEmoji();
+    });
+
+    renderHistory();
+</script>
+</body>
+</html>

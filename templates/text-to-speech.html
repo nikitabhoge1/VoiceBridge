@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text to Speech</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        .header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        .header h1 { color: #667eea; font-size: 24px; }
+        .back-btn {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .content-box {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        .input-area {
+            margin: 20px 0;
+        }
+        .input-area textarea {
+            width: 100%;
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 200px;
+            line-height: 1.6;
+        }
+        .input-area textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .controls-section {
+            margin: 30px 0;
+            padding: 25px;
+            background: #f9f9f9;
+            border-radius: 10px;
+        }
+        .control-group {
+            margin-bottom: 20px;
+        }
+        .control-group label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #333;
+        }
+        .control-group select, .control-group input[type="range"] {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .control-group input[type="range"] {
+            padding: 0;
+        }
+        .range-value {
+            display: inline-block;
+            margin-left: 10px;
+            font-weight: 600;
+            color: #667eea;
+        }
+        .speaker-button {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: #667eea;
+            border: none;
+            cursor: pointer;
+            font-size: 54px;
+            color: white;
+            transition: all 0.3s;
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+            margin: 20px auto;
+            display: block;
+        }
+        .speaker-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 30px rgba(102, 126, 234, 0.6);
+        }
+        .speaker-button:active {
+            transform: scale(0.95);
+        }
+        .speaker-button.speaking {
+            animation: speakPulse 1s infinite;
+        }
+        @keyframes speakPulse {
+            0%, 100% { transform: scale(1); }
+            25% { transform: scale(1.1); }
+            75% { transform: scale(0.95); }
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+        .btn {
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+        .btn:hover { background: #5568d3; }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
+        .btn.danger { background: #e74c3c; }
+        .btn.danger:hover { background: #c0392b; }
+        .status {
+            text-align: center;
+            margin: 15px 0;
+            font-weight: 600;
+            color: #666;
+        }
+        .status.speaking { color: #27ae60; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔊 Text to Speech</h1>
+            <a href="home.html" class="back-btn">← Back</a>
+        </div>
+
+        <div class="content-box">
+            <h2 style="text-align: center; color: #667eea; margin-bottom: 20px;">
+                Type or paste text to hear it spoken
+            </h2>
+            
+            <div class="input-area">
+                <textarea id="textInput" placeholder="Enter text here to convert to speech...">Hello! This is a text to speech demonstration. You can type any text here and I will read it aloud for you.</textarea>
+            </div>
+
+            <button class="speaker-button" id="speakButton" onclick="toggleSpeak()">🔊</button>
+            
+            <div id="status" class="status">Ready to speak</div>
+
+            <div class="controls-section">
+                <div class="control-group">
+                    <label for="voiceSelect">Voice: <span id="voiceName"></span></label>
+                    <select id="voiceSelect" onchange="updateVoiceInfo()"></select>
+                </div>
+                
+                <div class="control-group">
+                    <label for="rateRange">Speed: <span class="range-value" id="rateValue">1.0x</span></label>
+                    <input type="range" id="rateRange" min="0.5" max="2" step="0.1" value="1" oninput="updateRate()">
+                </div>
+                
+                <div class="control-group">
+                    <label for="pitchRange">Pitch: <span class="range-value" id="pitchValue">1.0</span></label>
+                    <input type="range" id="pitchRange" min="0" max="2" step="0.1" value="1" oninput="updatePitch()">
+                </div>
+                
+                <div class="control-group">
+                    <label for="volumeRange">Volume: <span class="range-value" id="volumeValue">100%</span></label>
+                    <input type="range" id="volumeRange" min="0" max="1" step="0.1" value="1" oninput="updateVolume()">
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button class="btn" onclick="pauseSpeak()">⏸️ Pause</button>
+                <button class="btn" onclick="resumeSpeak()">▶️ Resume</button>
+                <button class="btn danger" onclick="stopSpeak()">⏹️ Stop</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let voices = [];
+        let utterance = null;
+        let isSpeaking = false;
+
+        function loadVoices() {
+            voices = speechSynthesis.getVoices();
+            const voiceSelect = document.getElementById('voiceSelect');
+            voiceSelect.innerHTML = '';
+            
+            voices.forEach((voice, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = `${voice.name} (${voice.lang})`;
+                if (voice.default) {
+                    option.selected = true;
+                }
+                voiceSelect.appendChild(option);
+            });
+            
+            updateVoiceInfo();
+        }
+
+        function updateVoiceInfo() {
+            const voiceSelect = document.getElementById('voiceSelect');
+            const selectedVoice = voices[voiceSelect.value];
+            if (selectedVoice) {
+                document.getElementById('voiceName').textContent = selectedVoice.name;
+            }
+        }
+
+        function updateRate() {
+            const rate = document.getElementById('rateRange').value;
+            document.getElementById('rateValue').textContent = rate + 'x';
+        }
+
+        function updatePitch() {
+            const pitch = document.getElementById('pitchRange').value;
+            document.getElementById('pitchValue').textContent = pitch;
+        }
+
+        function updateVolume() {
+            const volume = document.getElementById('volumeRange').value;
+            document.getElementById('volumeValue').textContent = Math.round(volume * 100) + '%';
+        }
+
+        function toggleSpeak() {
+            if (isSpeaking) {
+                stopSpeak();
+            } else {
+                speak();
+            }
+        }
+
+        function speak() {
+            const text = document.getElementById('textInput').value.trim();
+            
+            if (!text) {
+                alert('Please enter some text to speak');
+                return;
+            }
+            
+            speechSynthesis.cancel();
+            
+            utterance = new SpeechSynthesisUtterance(text);
+            
+            const voiceSelect = document.getElementById('voiceSelect');
+            utterance.voice = voices[voiceSelect.value];
+            utterance.rate = parseFloat(document.getElementById('rateRange').value);
+            utterance.pitch = parseFloat(document.getElementById('pitchRange').value);
+            utterance.volume = parseFloat(document.getElementById('volumeRange').value);
+            
+            utterance.onstart = () => {
+                isSpeaking = true;
+                document.getElementById('speakButton').classList.add('speaking');
+                document.getElementById('status').textContent = 'Speaking...';
+                document.getElementById('status').classList.add('speaking');
+            };
+            
+            utterance.onend = () => {
+                isSpeaking = false;
+                document.getElementById('speakButton').classList.remove('speaking');
+                document.getElementById('status').textContent = 'Ready to speak';
+                document.getElementById('status').classList.remove('speaking');
+            };
+            
+            utterance.onerror = (event) => {
+                console.error('Speech error:', event);
+                isSpeaking = false;
+                document.getElementById('speakButton').classList.remove('speaking');
+                document.getElementById('status').textContent = 'Error occurred';
+            };
+            
+            speechSynthesis.speak(utterance);
+        }
+
+        function pauseSpeak() {
+            if (speechSynthesis.speaking && !speechSynthesis.paused) {
+                speechSynthesis.pause();
+                document.getElementById('status').textContent = 'Paused';
+            }
+        }
+
+        function resumeSpeak() {
+            if (speechSynthesis.paused) {
+                speechSynthesis.resume();
+                document.getElementById('status').textContent = 'Speaking...';
+            }
+        }
+
+        function stopSpeak() {
+            speechSynthesis.cancel();
+            isSpeaking = false;
+            document.getElementById('speakButton').classList.remove('speaking');
+            document.getElementById('status').textContent = 'Ready to speak';
+            document.getElementById('status').classList.remove('speaking');
+        }
+
+        // Load voices when available
+        if (speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = loadVoices;
+        }
+        
+        window.addEventListener('load', () => {
+            loadVoices();
+            // Fallback if voices are already loaded
+            setTimeout(loadVoices, 100);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text to Sign</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        .header h1 { color: #667eea; font-size: 24px; }
+        .back-btn {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .content-box {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+        .input-area {
+            margin: 20px 0;
+        }
+        .input-area textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 100px;
+        }
+        .input-area textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .btn {
+            padding: 12px 30px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s;
+            margin-top: 15px;
+        }
+        .btn:hover { background: #5568d3; }
+        .signs-display {
+            margin-top: 30px;
+            padding: 30px;
+            background: #f9f9f9;
+            border-radius: 10px;
+            min-height: 200px;
+        }
+        .signs-display h3 {
+            color: #667eea;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .signs-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            align-items: center;
+        }
+        .sign-item {
+            text-align: center;
+            animation: signPop 0.5s ease;
+        }
+        .sign-item img {
+            width: 80px;
+            height: 80px;
+            border-radius: 8px;
+            background: white;
+            padding: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .sign-item .letter {
+            font-weight: 600;
+            color: #333;
+            margin-top: 5px;
+            font-size: 14px;
+        }
+        .space-indicator {
+            width: 40px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #999;
+        }
+        @keyframes signPop {
+            0% { transform: scale(0) rotate(-10deg); opacity: 0; }
+            50% { transform: scale(1.1) rotate(5deg); }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📝 Text to Sign Language</h1>
+            <a href="home.html" class="back-btn">← Back</a>
+        </div>
+
+        <div class="content-box">
+            <h2 style="text-align: center; color: #667eea; margin-bottom: 20px;">
+                Type text to see sign language
+            </h2>
+            
+            <div class="input-area">
+                <textarea id="textInput" placeholder="Type your text here..."></textarea>
+                <button class="btn" onclick="convertToSign()">Convert to Sign Language</button>
+            </div>
+            
+            <div class="signs-display">
+                <h3>Sign Language Representation</h3>
+                <div id="signsContainer" class="signs-container">
+                    <div class="empty-state">
+                        Type text and click convert to see sign language gestures
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8000';
+
+        const signLanguageDict = {
+            "A": "https://upload.wikimedia.org/wikipedia/commons/2/27/Sign_language_A.svg",
+            "B": "https://upload.wikimedia.org/wikipedia/commons/1/18/Sign_language_B.svg",
+            "C": "https://upload.wikimedia.org/wikipedia/commons/e/e3/Sign_language_C.svg",
+            "D": "https://upload.wikimedia.org/wikipedia/commons/0/06/Sign_language_D.svg",
+            "E": "https://upload.wikimedia.org/wikipedia/commons/c/cd/Sign_language_E.svg",
+            "F": "https://upload.wikimedia.org/wikipedia/commons/8/8f/Sign_language_F.svg",
+            "G": "https://upload.wikimedia.org/wikipedia/commons/d/d9/Sign_language_G.svg",
+            "H": "https://upload.wikimedia.org/wikipedia/commons/9/97/Sign_language_H.svg",
+            "I": "https://upload.wikimedia.org/wikipedia/commons/1/10/Sign_language_I.svg",
+            "J": "https://upload.wikimedia.org/wikipedia/commons/b/b1/Sign_language_J.svg",
+            "K": "https://upload.wikimedia.org/wikipedia/commons/9/97/Sign_language_K.svg",
+            "L": "https://upload.wikimedia.org/wikipedia/commons/d/d2/Sign_language_L.svg",
+            "M": "https://upload.wikimedia.org/wikipedia/commons/c/c4/Sign_language_M.svg",
+            "N": "https://upload.wikimedia.org/wikipedia/commons/e/e6/Sign_language_N.svg",
+            "O": "https://freesvg.org/img/Deaf-Alphabet-O.png",
+            "P": "https://freesvg.org/img/Deaf-Alphabet-P.png",
+            "Q": "https://freesvg.org/img/Deaf-Alphabet-Q.png",
+            "R": "https://freesvg.org/img/Deaf-Alphabet-R.png",
+            "S": "https://upload.wikimedia.org/wikipedia/commons/3/3f/Sign_language_S.svg",
+            "T": "https://upload.wikimedia.org/wikipedia/commons/1/13/Sign_language_T.svg",
+            "U": "https://upload.wikimedia.org/wikipedia/commons/7/7c/Sign_language_U.svg",
+            "V": "https://freesvg.org/img/Deaf-Alphabet-V.png",
+            "W": "https://upload.wikimedia.org/wikipedia/commons/8/83/Sign_language_W.svg",
+            "X": "https://freesvg.org/img/Deaf-Alphabet-X.png",
+            "Y": "https://upload.wikimedia.org/wikipedia/commons/1/1d/Sign_language_Y.svg",
+            "Z": "https://freesvg.org/img/Deaf-Alphabet-Z.png"
+        };
+
+        function convertToSign() {
+            const text = document.getElementById('textInput').value.trim().toUpperCase();
+            const container = document.getElementById('signsContainer');
+            
+            if (!text) {
+                container.innerHTML = '<div class="empty-state">Please enter some text first</div>';
+                return;
+            }
+            
+            container.innerHTML = '';
+            
+            for (let char of text) {
+                if (char === ' ') {
+                    const space = document.createElement('div');
+                    space.className = 'space-indicator';
+                    space.textContent = '⎵';
+                    container.appendChild(space);
+                } else if (signLanguageDict[char]) {
+                    const signItem = document.createElement('div');
+                    signItem.className = 'sign-item';
+                    
+                    const img = document.createElement('img');
+                    img.src = signLanguageDict[char];
+                    img.alt = char;
+                    
+                    const letter = document.createElement('div');
+                    letter.className = 'letter';
+                    letter.textContent = char;
+                    
+                    signItem.appendChild(img);
+                    signItem.appendChild(letter);
+                    container.appendChild(signItem);
+                }
+            }
+            
+            if (container.children.length === 0) {
+                container.innerHTML = '<div class="empty-state">No sign language available for entered characters</div>';
+            }
+        }
+
+        // Convert on Enter key
+        document.getElementById('textInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.ctrlKey) {
+                convertToSign();
+            }
+        });
+    </script>
+</body>
+</html>
