@@ -17,7 +17,6 @@ import traceback
 import re
 
 app = FastAPI()
-
 # CORS configuration
 app.add_middleware(
     CORSMiddleware,
@@ -27,10 +26,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configuration
-SECRET_KEY = "your-secret-key-change-in-production"
-API_KEY = "YOUR_API_KEY"
 
+
+import os
+
+SECRET_KEY = os.getenv("SECRET_KEY", "voicebridge_secret_2026")
+API_KEY = os.getenv("API_KEY")
 
 # Database configuration
 DB_CONFIG = {
