@@ -29,16 +29,19 @@ app.add_middleware(
 
 
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 SECRET_KEY = os.getenv("SECRET_KEY", "voicebridge_secret_2026")
 API_KEY = os.getenv("API_KEY")
 
-# Database configuration
+
 DB_CONFIG = {
-    "host": "localhost",
-    "user": "root",
-    "password": "YOUR_DB_PASSWORD",
-    "database": "sign_language_db",
+    "host": os.getenv("DB_HOST", "localhost"),
+    "user": os.getenv("DB_USER", "root"),
+    "password": os.getenv("DB_PASSWORD"),
+    "database": os.getenv("DB_NAME", "sign_language_db"),
     "charset": "utf8mb4",
     "cursorclass": pymysql.cursors.DictCursor
 }
